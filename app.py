@@ -1,6 +1,6 @@
 import streamlit as st
 import streamlit.components.v1 as components
-from model import tokenize, detokenize, predict, distribute_balls_threshold, add_token, current_token_ids, render_token_html, reset_app
+from model import tokenize, detokenize, predict, distribute_balls_threshold, add_token, current_token_ids, render_token_html, reset_app, chip
 
 # =====================================================
 # Konfiguration
@@ -49,8 +49,9 @@ init_state()
 # =====================================================
 # UI
 # =====================================================
-st.title("Wort Vorhersager 🔮 ")
-st.subheader("Sprachmodell: german-gpt2-medium")
+st.title("Generatives base model")
+st.markdown("Sprachmodell: kkirchheim/german-gpt2-medium")
+st.markdown("https://huggingface.co/kkirchheim/german-gpt2-medium/tree/refs%2Fpr%2F1")
 
 
 # -------------------------
@@ -234,8 +235,31 @@ hover_html = f"""
 </html>
 """
 
+# Globale Button-Styles kompakt setzen
+st.markdown("""
+<style>
+div.stButton { margin: 0; }
+div.stButton > button {
+    padding: 0 10px;           /* horizontal wie Chip */
+    height: 32px;              /* gleiche Höhe wie Chip */
+    min-height: 32px;
+    border-radius: 14px;       /* optisch ähnlich Chip */
+    background: rgba(240,242,246,0.55);
+    color: #31333F;
+    border: 1px solid rgba(49,51,63,0.2);
+    font-weight: 600;
+    font-family: inherit;
+    line-height: 1;
+    box-shadow: none;
+}
+div.stButton > button:hover {
+    background: rgba(240,242,246,0.95);
+}
+</style>
+""", unsafe_allow_html=True)
+
 # Höhe: etwas größer, damit beide Zeilen bequem passen, inkl. Toggle.
-components.html(hover_html, height=200, scrolling=False)
+components.html(hover_html, height=200, scrolling=True)
 
 # =====================================================
 # MODUS A – Deterministisch
@@ -245,7 +269,7 @@ if st.session_state.mode == "deterministic":
     preds = predict(current_token_ids(), top_k=TOP_K)
 
     # Überschrift + Weiter-Button in einer Zeile
-    header_cols = st.columns([4, 1])
+    header_cols = st.columns([3, 1])
     with header_cols[0]:
         st.subheader("Modell-Vorschläge")
     with header_cols[1]:
@@ -262,11 +286,12 @@ if st.session_state.mode == "deterministic":
     cols[3].markdown("**Wahrscheinlichkeit**")
 
     for i, (tid, p) in enumerate(preds):
-        row = st.columns([1, 2, 3, 2])
-        row[0].write(i + 1)
-        row[1].write(tid)
-        row[2].write(detokenize(tid))
-        row[3].write(f"{p * 100:.1f} %")
+        # Einheitliche Chips für alle Spalten
+        cols[0].markdown(chip(i + 1), unsafe_allow_html=True)
+        cols[1].markdown(chip(tid), unsafe_allow_html=True)
+        # Für Token-Text evtl. andere Schriftfarbe (schwarz)
+        cols[2].markdown(chip(detokenize(tid), color="#31333F"), unsafe_allow_html=True)
+        cols[3].markdown(chip(f"{p * 100:.1f} %"), unsafe_allow_html=True)
 
 # =====================================================
 # MODUS B – Probabilistisch
@@ -300,24 +325,29 @@ if st.session_state.mode == "probabilistic":
         st.session_state.norm_probs = norm
         st.session_state.balls = balls
 
-    st.subheader("Token-Sack")
+    st.subheader("Modell-Vorschläge")
     headers = ["Nr", "Token-ID", "Token", "Modell-P", "Norm-P", "Plättchen", "Bereich", "Aktion"]
-    cols = st.columns([1, 2, 2, 2, 2, 2, 2, 2])
+    cols = st.columns([1, 2, 3, 2, 2, 2, 2, 2])
     for c, h in zip(cols, headers):
         c.markdown(f"**{h}**")
 
     for i, (start, end, tid) in enumerate(st.session_state.ranges):
-        cols = st.columns([1, 2, 2, 2, 2, 2, 2, 2])
-        cols[0].write(i + 1)
-        cols[1].write(tid)
-        cols[2].write(detokenize(tid))
-        cols[3].write(f"{st.session_state.model_probs[i]:.3f}")
-        cols[4].write(f"{st.session_state.norm_probs[i]:.3f}")
-        # Plättchen und Bereich anzeigen
+        # Nummer, Token-ID, Token-Text
+        cols[0].markdown(chip(i + 1), unsafe_allow_html=True)
+        cols[1].markdown(chip(tid), unsafe_allow_html=True)
+        cols[2].markdown(chip(detokenize(tid), color="#31333F"), unsafe_allow_html=True)
+
+        # Modell- und Normalisierte Wahrscheinlichkeit in %
+        cols[3].markdown(chip(f"{st.session_state.model_probs[i] * 100:.1f} %"), unsafe_allow_html=True)
+        cols[4].markdown(chip(f"{st.session_state.norm_probs[i] * 100:.1f} %"), unsafe_allow_html=True)
+
+        # Plättchen (Balls) und Bereich
         b = st.session_state.balls[i]
-        cols[5].write(b if b > 0 else "-")
-        cols[6].write(f"{start}-{end}" if (start is not None and end is not None) else "-")
-        # Ziehen-Button nur, wenn Plättchen > 0
+        cols[5].markdown(chip(b if b > 0 else "-"), unsafe_allow_html=True)
+        cols[6].markdown(
+            chip(f"{start}-{end}" if (start is not None and end is not None) else "-"),
+            unsafe_allow_html=True
+        )
         can_pick = b > 0
         if cols[7].button("ziehen", key=f"btn_pick_{i}", disabled=not can_pick):
             if can_pick:

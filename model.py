@@ -179,3 +179,14 @@ def reset_app():
     for key in list(st.session_state.keys()):
         del st.session_state[key]
     st.rerun()
+
+def chip(value, color="#2e7d32"):
+    return (
+        f"<span style='display:inline-flex;align-items:center;"
+        f"height:32px;min-height:32px;line-height:1;"
+        f"padding:0 10px;border-radius:4px;"
+        f"white-space:nowrap;"
+        f"background:rgba(240,242,246,0.85);"
+        f"color:{color};font-weight:600;font-family:inherit;'>"
+        f"{value}</span>"
+    )
